@@ -33,23 +33,26 @@ decoder_output_to_sequence_length.to(device)
 decoder_input = torch.zeros(1, sequence_length, decoder_input_size)
 
 def train():
-    for random_sequence in loader:
+    for index, random_sequence in enumerate(loader):
         random_sequence = random_sequence.to(device)
         correct_sequence = torch.sort(random_sequence)[0]
         correct_sequence = correct_sequence.long().to(device).squeeze(0)
-        # correct_sequence = correct_sequence.view(sequence_length, -1)
-        # print(correct_sequence)
 
         random_sequence_embedding = embedding(random_sequence)
         encoder_outputs, (encoder_h, encoder_c) = encoder(random_sequence_embedding)
         encoder_outputs = encoder_outputs[:,:,:encoder_hidden_size] + encoder_outputs[:,:,encoder_hidden_size:]
 
-        # print(encoder_outputs.size())
         decoder_outputs, (decoder_h, decoder_c) = decoder(decoder_input, (encoder_h.view(1,1,-1), encoder_c.view(1,1,-1)))
         softmax_input = decoder_output_to_sequence_length(decoder_outputs).squeeze(0)
-        # print(softmax_input.size())
+
         loss = criterion(softmax_input, correct_sequence)
-        print(loss.item())
+
+        if index%100 == 0:
+            print('Loss at iteration {}: {:.8f}'.format(index, loss.item()))
+        if index > 2500 and loss.item() < 1e-3:
+            print('Stopping training now')
+            break
+
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
