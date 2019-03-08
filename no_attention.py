@@ -23,7 +23,7 @@ decoder_output_to_sequence_length = nn.Linear(decoder_output_size, sequence_leng
 
 trainable_parameters = [{'params': net.parameters()} for net in [embedding, encoder, decoder, decoder_output_to_sequence_length]]
 
-optimizer = Adam(trainable_parameters)
+optimizer = Adam(trainable_parameters, lr=0.005)
 
 embedding.to(device)
 encoder.to(device)
@@ -40,7 +40,6 @@ def train():
 
         random_sequence_embedding = embedding(random_sequence)
         encoder_outputs, (encoder_h, encoder_c) = encoder(random_sequence_embedding)
-        encoder_outputs = encoder_outputs[:,:,:encoder_hidden_size] + encoder_outputs[:,:,encoder_hidden_size:]
 
         decoder_outputs, (decoder_h, decoder_c) = decoder(decoder_input, (encoder_h.view(1,1,-1), encoder_c.view(1,1,-1)))
         softmax_input = decoder_output_to_sequence_length(decoder_outputs).squeeze(0)
@@ -49,9 +48,6 @@ def train():
 
         if index%100 == 0:
             print('Loss at iteration {}: {:.8f}'.format(index, loss.item()))
-        if index > 2500 and loss.item() < 1e-3:
-            print('Stopping training now')
-            break
 
         optimizer.zero_grad()
         loss.backward()
