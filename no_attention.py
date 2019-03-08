@@ -33,6 +33,7 @@ decoder_output_to_sequence_length.to(device)
 decoder_input = torch.zeros(1, sequence_length, decoder_input_size)
 
 def train():
+    correct, total = 0, 0
     for index, random_sequence in enumerate(loader):
         random_sequence = random_sequence.to(device)
         correct_sequence = torch.sort(random_sequence)[1]
@@ -46,8 +47,14 @@ def train():
 
         loss = criterion(softmax_input, correct_sequence)
 
+        # calculating accuracy
+        accurate = (softmax_input.max(1)[1] == correct_sequence).sum()
+        correct += accurate
+        total += sequence_length
         if index%100 == 0:
             print('Loss at iteration {}: {:.8f}'.format(index, loss.item()))
+            print('Accuracy in last 100 iterations: {}/{}'.format(correct, total))
+            correct, total = 0, 0
 
         optimizer.zero_grad()
         loss.backward()
