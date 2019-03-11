@@ -83,5 +83,39 @@ def train():
         optimizer.step()
         # break
 
+def test():
+    with torch.no_grad():
+        for index, random_sequence in enumerate(loader):
+            random_sequence = random_sequence.to(device)
+            correct_sequence = torch.sort(random_sequence)[1]
+            correct_sequence = correct_sequence.long().to(device).squeeze(0)
+
+            random_sequence_embedding = embedding(random_sequence)
+            encoder_outputs, (encoder_h, encoder_c) = encoder(random_sequence_embedding)
+
+            decoder_outputs = []
+            decoder_input_h = encoder_h.view(1,1,-1)
+            attentions = []
+            for time in range(sequence_length):
+                # attention starts here
+                decoder_input_h_repeated = decoder_input_h.repeat(1,sequence_length,1)
+                concatenated_tensor = torch.cat([decoder_input_h_repeated, encoder_outputs], dim=2)
+                transformed_concatenated_tensor = content_based_attention_concat(concatenated_tensor)
+                similarity_with_reference_vector = torch.bmm(reference_vector, transformed_concatenated_tensor.transpose(1,2))
+                encoder_output_weights = F.softmax(similarity_with_reference_vector, dim=2)
+                weighted_sum_of_encoder_outputs = torch.bmm(encoder_output_weights, encoder_outputs)
+                attentions.append(encoder_output_weights)
+                # attention ends here
+                decoder_output_at_time_t, (decoder_h, decoder_c) = decoder(decoder_input, (decoder_input_h, weighted_sum_of_encoder_outputs))
+                decoder_outputs.append(decoder_output_at_time_t)
+                decoder_input_h = decoder_h
+
+            decoder_outputs = torch.cat(decoder_outputs, 1)
+            softmax_input = decoder_output_to_sequence_length(decoder_outputs).squeeze(0)
+
+            loss = criterion(softmax_input, correct_sequence)
+            accurate = (softmax_input.max(1)[1] == correct_sequence).sum()
+            return random_sequence, correct_sequence, softmax_input, accurate, attentions
+
 if __name__ == '__main__':
     train()
